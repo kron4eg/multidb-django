@@ -56,6 +56,14 @@ Don't use database backend for sessions.
     switch_db('second')
     SomeModel.objects.all()
 
+    from multidb.db import get_object_anywhere, get_object_from
+
+    # This will return first founded object with pk=1345, or None if case of fail.
+    get_object_anywhere(SomeModel, pk=1345)
+
+    #this will search only in listed databases
+    get_object_from(['db1', 'db2'], pk=1345)
+
 TODO
 ----
 
