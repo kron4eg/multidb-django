@@ -62,7 +62,7 @@ Don't use database backend for sessions.
     get_object_anywhere(SomeModel, pk=1345)
 
     #this will search only in listed databases
-    get_object_from(['db1', 'db2'], pk=1345)
+    get_object_from(['db1', 'db2'], SomeModel, pk=1345)
 
 TODO
 ----
