@@ -1,41 +1,44 @@
 # -*- coding: utf-8 -*-
-import thread
 from threading import local
 
 from django.conf import settings
 from django.core import signals
-from django.db.models import sql, Manager
-from django.db.models.query import QuerySet
-from django.db.transaction import savepoint_state
+from django.db.models import sql
+from django.db.models.query import QuerySet, insert_query
 
-from lib import _threading_local
+from multidb import _threading_local
 
 
-def get_db_wrapper():
+def open_connection_pool(**kwargs):
     if not hasattr(_threading_local, 'DB_POOL'):
         _threading_local.DB_POOL = {}
-    db = getattr(_threading_local, 'DATABASE', 'default')
-    database = settings.DATABASES[db]
-    if db in _threading_local.DB_POOL and \
-            _threading_local.DB_POOL[db]._valid_connection():
-        return _threading_local.DB_POOL[db]
-
-    backend = __import__('django.db.backends.' + database['DATABASE_ENGINE']
-        + ".base", {}, {}, ['base'])
-    thread_settings = local()
-    for key, value in database.iteritems():
-        setattr(thread_settings, key, value)
-    wrapper = backend.DatabaseWrapper()
-    wrapper._cursor(thread_settings)
-    del thread_settings
-    _threading_local.DB_POOL[db] = wrapper
-    return wrapper
+    for db_name in settings.DATABASES:
+        database = settings.DATABASES[db_name]
+        backend = __import__('django.db.backends.' + database['DATABASE_ENGINE'] + ".base", {}, {}, ['base'])
+        thread_settings = local()
+        for key, value in database.iteritems():
+            setattr(thread_settings, key, value)
+        wrapper = backend.DatabaseWrapper()
+        wrapper._cursor(thread_settings)
+        _threading_local.DB_POOL[db_name] = wrapper
 
 def close_connection_pool(**kwargs):
     if hasattr(_threading_local, 'DB_POOL'):
         for db_name in _threading_local.DB_POOL:
+            _threading_local.DB_POOL[db_name]._commit()
             _threading_local.DB_POOL[db_name].close()
+        del _threading_local.DB_POOL
+
+
+signals.request_started.connect(open_connection_pool)
 signals.request_finished.connect(close_connection_pool)
+
+
+def get_db_wrapper():
+    if not hasattr(_threading_local, 'DB_POOL'):
+        open_connection_pool()
+    db_name = getattr(_threading_local, 'DATABASE', 'default')
+    return _threading_local.DB_POOL[db_name]
 
 
 def __init__(self, model=None, query=None):
@@ -47,13 +50,9 @@ def __init__(self, model=None, query=None):
 QuerySet.__init__ = __init__
 
 
-def _insert(self, values, return_id=False, raw_values=False):
-    query = sql.InsertQuery(self.model, get_db_wrapper())
+def multidb_insert_query(model, values, return_id=False, raw_values=False):
+    query = sql.InsertQuery(model, get_db_wrapper())
     query.insert_values(values, raw_values)
-    ret = query.execute_sql(return_id)
-    query.connection._commit()
-    thread_ident = thread.get_ident()
-    if thread_ident in savepoint_state:
-        del savepoint_state[thread_ident]
-    return ret
-Manager._insert = _insert
+    return query.execute_sql(return_id)
+
+insert_query = multidb_insert_query
