@@ -148,7 +148,6 @@ def commit_unless_managed():
     """
     Commits changes if the system is not in managed transaction mode.
     """
-    print 'my commit_unless_managed'
     if not is_managed():
         connection()._commit()
         clean_savepoints()
