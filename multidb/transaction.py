@@ -22,7 +22,7 @@ except ImportError:
     from django.utils.functional import wraps  # Python 2.3, 2.4 fallback.
 from django.conf import settings
 
-from lib import _threading_local
+from multidb import _threading_local
 
 
 def connection():

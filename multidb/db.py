@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.conf import settings
 
-from lib import _threading_local
+from multidb import _threading_local
 
 def get_object_anywhere(model, **kwargs):
     databases = (x for x in settings.DATABASES.iterkeys())
