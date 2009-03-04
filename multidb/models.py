@@ -35,11 +35,7 @@ def close_connection_pool(**kwargs):
             _threading_local.DB_POOL[db_name]._commit()
             _threading_local.DB_POOL[db_name].close()
         del _threading_local.DB_POOL
-
-
-signals.request_started.connect(open_connection_pool)
 signals.request_finished.connect(close_connection_pool)
-
 
 def get_db_wrapper():
     if not hasattr(_threading_local, 'DB_POOL'):
