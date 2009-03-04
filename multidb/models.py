@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
 from threading import local
 
+import django
 from django.conf import settings
 from django.core import signals
-from django.db.models import sql
-from django.db.models.query import QuerySet, insert_query
 
 from multidb import _threading_local
 
+class Fake_connection(object):
+    def __getattribute__(self, arg):
+        return getattr(get_db_wrapper(), arg)
+
+    def __setattr__(self, name, value):
+        setattr(get_db_wrapper(), name, value)
+
+django.db.connection = Fake_connection()
 
 def open_connection_pool(**kwargs):
     if not hasattr(_threading_local, 'DB_POOL'):
@@ -38,21 +45,5 @@ def get_db_wrapper():
     if not hasattr(_threading_local, 'DB_POOL'):
         open_connection_pool()
     db_name = getattr(_threading_local, 'DATABASE', 'default')
+    _threading_local.DATABASE = db_name
     return _threading_local.DB_POOL[db_name]
-
-
-def __init__(self, model=None, query=None):
-     self.model = model
-     self.query = query or sql.Query(self.model, get_db_wrapper())
-     self._result_cache = None
-     self._iter = None
-     self._sticky_filter = False
-QuerySet.__init__ = __init__
-
-
-def multidb_insert_query(model, values, return_id=False, raw_values=False):
-    query = sql.InsertQuery(model, get_db_wrapper())
-    query.insert_values(values, raw_values)
-    return query.execute_sql(return_id)
-
-insert_query = multidb_insert_query
