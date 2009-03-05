@@ -7,14 +7,29 @@ from django.core import signals
 
 from multidb import _threading_local
 
-class Fake_connection(object):
+
+class ProxyConnection(object):
     def __getattribute__(self, arg):
         return getattr(get_db_wrapper(), arg)
 
     def __setattr__(self, name, value):
         setattr(get_db_wrapper(), name, value)
 
-django.db.connection = Fake_connection()
+    def __repr__(self):
+        db_name = getattr(_threading_local, 'DATABASE', 'default')
+        return u'%s: %s' % (db_name, get_db_wrapper().__repr__())
+
+fake_connection = ProxyConnection()
+django.db.connection = fake_connection
+django.db.models.base.connection = fake_connection
+django.db.models.connection = fake_connection
+django.db.models.fields.connection = fake_connection
+django.db.models.fields.related.connection = fake_connection
+django.db.models.sql.expressions.connection = fake_connection
+django.db.models.sql.query.connection = fake_connection
+django.db.models.sql.where.connection = fake_connection
+django.db.models.query.connection = fake_connection
+django.db.transaction.connection = fake_connection
 
 def open_connection_pool(**kwargs):
     if not hasattr(_threading_local, 'DB_POOL'):
