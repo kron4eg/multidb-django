@@ -40,8 +40,11 @@ def open_connection_pool(**kwargs):
         thread_settings = local()
         for key, value in database.iteritems():
             setattr(thread_settings, key, value)
-        wrapper = backend.DatabaseWrapper()
-        wrapper._cursor(thread_settings)
+        try:
+            wrapper = backend.DatabaseWrapper()
+            wrapper._cursor(thread_settings)
+        except TypeError:
+            wrapper = backend.DatabaseWrapper(database)
         _threading_local.DB_POOL[db_name] = wrapper
 
 def close_connection_pool(**kwargs):
